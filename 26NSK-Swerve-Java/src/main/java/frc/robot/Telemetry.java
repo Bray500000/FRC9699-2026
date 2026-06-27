@@ -1,9 +1,12 @@
 package frc.robot;
 
+import java.util.Optional;
+
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
@@ -14,6 +17,8 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.networktables.StructPublisher;
+import edu.wpi.first.util.sendable.Sendable;
+import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
@@ -21,8 +26,9 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
 
-public class Telemetry {
+public class Telemetry implements Sendable {
     private final double MaxSpeed;
+    private SwerveDriveState stateCopy;
 
     /**
      * Construct a telemetry object, with the specified max speed of the robot
@@ -39,6 +45,10 @@ public class Telemetry {
         }
         
         SmartDashboard.putData("Field", field2d);
+
+        field2d.getObject("targetPose").setPose(new Pose2d(0, 0, new Rotation2d(0)));
+
+        SmartDashboard.putData("Swerve Drive", this);
     }
 
     /* What to publish over networktables for telemetry */
@@ -125,11 +135,30 @@ public class Telemetry {
             m_moduleDirections[i].setAngle(state.ModuleStates[i].angle);
             m_moduleSpeeds[i].setLength(state.ModuleStates[i].speedMetersPerSecond / (2 * MaxSpeed));
         }
+
+        stateCopy = state;
     }
 
     public void acceptTargetPose(Pose2d targetPose) {
         /* Telemeterize the pose of the target to NetworkTables */
         field2d.getObject("targetPose").setPose(targetPose);
         field2d.getObject("targetPose");
+    }
+
+    @Override public void initSendable(SendableBuilder builder) {
+        
+            if (stateCopy != null) {
+                builder.setSmartDashboardType("SwerveDrive");
+                builder.addDoubleProperty("Front Left Angle", () -> stateCopy.ModuleStates[0].angle.getRadians(), null);
+                builder.addDoubleProperty("Front Left Velocity", () -> stateCopy.ModuleStates[0].speedMetersPerSecond, null);
+                builder.addDoubleProperty("Front Right Angle", () -> stateCopy.ModuleStates[1].angle.getRadians(), null);
+                builder.addDoubleProperty("Front Right Velocity", () -> stateCopy.ModuleStates[1].speedMetersPerSecond, null);
+                builder.addDoubleProperty("Back Left Angle", () -> stateCopy.ModuleStates[2].angle.getRadians(), null);
+                builder.addDoubleProperty("Back Left Velocity", () -> stateCopy.ModuleStates[2].speedMetersPerSecond, null);
+                builder.addDoubleProperty("Back Right Angle", () -> stateCopy.ModuleStates[3].angle.getRadians(), null);
+                builder.addDoubleProperty("Back Right Velocity", () -> stateCopy.ModuleStates[3].speedMetersPerSecond, null);
+                builder.addDoubleProperty("Robot Angle", () -> stateCopy.Pose.getRotation().getRadians(), null);
+            }
+        
     }
 }
